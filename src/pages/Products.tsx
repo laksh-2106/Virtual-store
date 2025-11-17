@@ -24,26 +24,32 @@ const imageMap: Record<string, string> = {
 const Products = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { addToCart, totalItems } = useCart();
   const { toast } = useToast();
 
-  useEffect(() => {
-    const fetchProducts = async () => {
-      const { data, error } = await supabase.from("products").select("*");
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to load products",
-          variant: "destructive",
-        });
-      } else {
-        setProducts(data || []);
-      }
-      setLoading(false);
-    };
+  const fetchProducts = async () => {
+    setLoading(true);
+    setError(null);
+    const { data, error: fetchError } = await supabase.from("products").select("*");
+    if (fetchError) {
+      console.error("Error fetching products:", fetchError);
+      setError("Unable to connect to the backend. It may still be waking up.");
+      toast({
+        title: "Connection Error",
+        description: "Backend is initializing. Please wait a moment and try again.",
+        variant: "destructive",
+      });
+    } else {
+      setProducts(data || []);
+      setError(null);
+    }
+    setLoading(false);
+  };
 
+  useEffect(() => {
     fetchProducts();
-  }, [toast]);
+  }, []);
 
   const handleAddToCart = (product: any) => {
     addToCart({
@@ -66,8 +72,19 @@ const Products = () => {
           All Products
         </h1>
         {loading ? (
-          <div className="flex justify-center items-center h-64">
+          <div className="flex flex-col justify-center items-center h-64 gap-4">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-muted-foreground">Loading products...</p>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col justify-center items-center h-64 gap-4">
+            <p className="text-destructive text-center">{error}</p>
+            <button
+              onClick={fetchProducts}
+              className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
+            >
+              Retry
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
